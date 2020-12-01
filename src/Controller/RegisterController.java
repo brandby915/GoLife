@@ -219,9 +219,6 @@ public class RegisterController implements Initializable
         
         //Create user given the input information
         createUser(getFirstNameField().getText(), getLastNameField().getText(), dateofbirth, getEmailField().getText(), getUsernameField().getText(), getPasswordField().getText());
-        
-        //Check if user successfully created
-        searchUser(getFirstNameField().getText(), getLastNameField().getText(), dateofbirth, getEmailField().getText(), getUsernameField().getText(), getPasswordField().getText());
     }
     
     private void createUser(String firstname, String lastname, Date dateofbirth, String email, String username, String password)
@@ -251,12 +248,16 @@ public class RegisterController implements Initializable
             user.setUsername(username);
             user.setPassword(password);
             
-            //Begin transaction
-            getManager().getTransaction().begin();
-            
-            //Persist user and end transaction
-            getManager().persist(user);
-            getManager().getTransaction().commit();
+            //Check if user exists & successfully created
+            if(!searchUser(username))
+            {
+                //Begin transaction
+                getManager().getTransaction().begin();
+
+                //Persist user and end transaction
+                getManager().persist(user);
+                getManager().getTransaction().commit();
+            }
         }
         catch(Exception e)
         {
@@ -264,34 +265,34 @@ public class RegisterController implements Initializable
         }
     }
     
-    private void searchUser(String firstname, String lastname, Date dateofbirth, String email, String username, String password)
+    private boolean searchUser(String username)
     {
+        //Instantiate flag value
+        boolean userFound = false;
+        
         //Create and execute query to find user by all input fields
-        Query query = getManager().createNamedQuery("Usermodel.findByAllMinusUserid");
-        query.setParameter("firstname", firstname);
-        query.setParameter("lastname", lastname);
-        query.setParameter("dateofbirth", dateofbirth);
-        query.setParameter("email", email);
+        Query query = getManager().createNamedQuery("Usermodel.findByUsername");
         query.setParameter("username", username);
-        query.setParameter("password", password);
         List<Usermodel> users = query.getResultList();
         
-        //Check size of result list
-        if(users.size() < 1)
+        //Check result list size, if users found with same information, user should not be created
+        switch(users.size())
         {
-            //Notify user if user creation failed
-            getFeedbackLabel().setText("Failed to create user");
+            case 0:
+                //TODO: remove setText once register function implemented
+                getFeedbackLabel().setText("User created successfully!");
+                break;
+                
+            default:
+                //Notify user if, for some reason, more than one user exists with their input username
+                getFeedbackLabel().setText("Username already exists");
+                
+                //Update flag value
+                userFound = true;
+                break;
         }
-        else if(users.size() > 1)
-        {
-            //Notify user if, for some reason, more than one user exists with their input information
-            getFeedbackLabel().setText("More than one user exists with the given information");
-        }
-        else
-        {
-            //TODO: Replace with call to register function to trigger further events
-            getFeedbackLabel().setText("User created successfully!");
-            System.out.println(users.get(0).toString());
-        }
+        
+        //Return flag value
+        return userFound;
     }
 }

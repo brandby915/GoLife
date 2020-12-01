@@ -193,7 +193,8 @@ public class LoginController implements Initializable
         else
         {
             //Otherwise, return the one user found, remove any error messages present
-            getFeedbackLabel().setText("");
+            //TODO: once login function is implemented, remove text in setText() function
+            getFeedbackLabel().setText("User found!");
             return users.get(0);
         }
     }
