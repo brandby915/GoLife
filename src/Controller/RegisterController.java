@@ -5,7 +5,13 @@
  */
 package Controller;
 
+import Model.Usermodel;
 import java.net.URL;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.List;
 import java.util.ResourceBundle;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -22,6 +28,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
+import javax.persistence.EntityManager;
+import javax.persistence.Persistence;
+import javax.persistence.Query;
 
 /**
  * FXML Controller class
@@ -51,6 +60,7 @@ public class RegisterController implements Initializable
     private Button submitButton;
     @FXML
     private Label feedbackLabel;
+    private EntityManager manager;
 
     public ImageView getLogoView()
     {
@@ -151,6 +161,16 @@ public class RegisterController implements Initializable
     {
         this.feedbackLabel = feedbackLabel;
     }
+
+    public EntityManager getManager()
+    {
+        return manager;
+    }
+
+    public void setManager(EntityManager manager)
+    {
+        this.manager = manager;
+    }
     
     /**
      * Initializes the controller class.
@@ -160,6 +180,9 @@ public class RegisterController implements Initializable
     {
         //Set logo image
         getLogoView().setImage(new Image("/Assets/20_IST311_GoLife_Logo_v1.png"));
+        
+        //Init EntityManager
+        setManager((EntityManager) Persistence.createEntityManagerFactory("GoLifePU").createEntityManager());
     }    
 
     @FXML
@@ -189,6 +212,86 @@ public class RegisterController implements Initializable
     @FXML
     private void submitRegister(ActionEvent event)
     {
-        System.out.println("Register!");
+        //Transform date of birth field information to useful information for storage
+        LocalDate localDate = getDateOfBirthField().getValue();
+        Instant instant = Instant.from(localDate.atStartOfDay(ZoneId.systemDefault()));
+        Date dateofbirth = Date.from(instant);
+        
+        //Create user given the input information
+        createUser(getFirstNameField().getText(), getLastNameField().getText(), dateofbirth, getEmailField().getText(), getUsernameField().getText(), getPasswordField().getText());
+        
+        //Check if user successfully created
+        searchUser(getFirstNameField().getText(), getLastNameField().getText(), dateofbirth, getEmailField().getText(), getUsernameField().getText(), getPasswordField().getText());
+    }
+    
+    private void createUser(String firstname, String lastname, Date dateofbirth, String email, String username, String password)
+    {
+        try
+        {
+            //Search for next id in sequence
+            Query query = getManager().createNamedQuery("Usermodel.findAll");
+            List<Usermodel> users = query.getResultList();
+            int userId = 1;
+            
+            //Change value if there are existing users
+            if(users.size() != 0)
+            {
+                //Usermodel.findAll query is written to sort in descending order
+                //Increment largest userid by 1
+                userId = users.get(0).getUserid() + 1;
+            }
+            
+            //Instantiate usermodel and set parameters
+            Usermodel user = new Usermodel();
+            user.setUserid(userId);
+            user.setFirstname(firstname);
+            user.setLastname(lastname);
+            user.setDateofbirth(dateofbirth);
+            user.setEmail(email);
+            user.setUsername(username);
+            user.setPassword(password);
+            
+            //Begin transaction
+            getManager().getTransaction().begin();
+            
+            //Persist user and end transaction
+            getManager().persist(user);
+            getManager().getTransaction().commit();
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
+    
+    private void searchUser(String firstname, String lastname, Date dateofbirth, String email, String username, String password)
+    {
+        //Create and execute query to find user by all input fields
+        Query query = getManager().createNamedQuery("Usermodel.findByAllMinusUserid");
+        query.setParameter("firstname", firstname);
+        query.setParameter("lastname", lastname);
+        query.setParameter("dateofbirth", dateofbirth);
+        query.setParameter("email", email);
+        query.setParameter("username", username);
+        query.setParameter("password", password);
+        List<Usermodel> users = query.getResultList();
+        
+        //Check size of result list
+        if(users.size() < 1)
+        {
+            //Notify user if user creation failed
+            getFeedbackLabel().setText("Failed to create user");
+        }
+        else if(users.size() > 1)
+        {
+            //Notify user if, for some reason, more than one user exists with their input information
+            getFeedbackLabel().setText("More than one user exists with the given information");
+        }
+        else
+        {
+            //TODO: Replace with call to register function to trigger further events
+            getFeedbackLabel().setText("User created successfully!");
+            System.out.println(users.get(0).toString());
+        }
     }
 }

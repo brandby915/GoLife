@@ -5,7 +5,9 @@
  */
 package Controller;
 
+import Model.Usermodel;
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -21,6 +23,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
+import javax.persistence.EntityManager;
+import javax.persistence.Persistence;
+import javax.persistence.Query;
 
 /**
  * FXML Controller class
@@ -41,6 +46,7 @@ public class LoginController implements Initializable
     private Button submitButton;
     @FXML
     private Label feedbackLabel;
+    private EntityManager manager;
 
     public ImageView getLogoView()
     {
@@ -101,6 +107,16 @@ public class LoginController implements Initializable
     {
         this.feedbackLabel = feedbackLabel;
     }
+
+    public EntityManager getManager()
+    {
+        return manager;
+    }
+
+    public void setManager(EntityManager manager)
+    {
+        this.manager = manager;
+    }
     
     /**
      * Initializes the controller class.
@@ -110,6 +126,9 @@ public class LoginController implements Initializable
     {
         //Set top left logo image
         getLogoView().setImage(new Image("/Assets/20_IST311_GoLife_Logo_v1.png"));
+        
+        //Init EntityManager
+        setManager((EntityManager) Persistence.createEntityManagerFactory("GoLifePU").createEntityManager());
     }
 
     @FXML
@@ -139,6 +158,43 @@ public class LoginController implements Initializable
     @FXML
     private void submitLogin(ActionEvent event)
     {
-        System.out.println("Login!");
+        //Get user from searchByUsernamePassword method using username and password input fields
+        Usermodel user = searchByUsernamePassword(getUsernameField().getText(), getPasswordField().getText());
+        
+        //TODO: eventually call a login function here
+        if(user != null)
+        {
+            System.out.println(user.toString());
+        }
+    }
+    
+    private Usermodel searchByUsernamePassword(String username, String password)
+    {
+        //Instantiate query and set parameters
+        Query query = getManager().createNamedQuery("Usermodel.findByUsernamePassword");
+        query.setParameter("username", username);
+        query.setParameter("password", password);
+        
+        //Execute query
+        List<Usermodel> users = query.getResultList();
+        
+        if(users.size() < 1)
+        {
+            //Notify user if user not found
+            getFeedbackLabel().setText("User with the given credentials does not exist");
+            return null;
+        }
+        else if(users.size() > 1)
+        {
+            //Notify user if, for some reason, more than one users share the same username and password
+            getFeedbackLabel().setText("More than one user with the given credentials found");
+            return null;
+        }
+        else
+        {
+            //Otherwise, return the one user found, remove any error messages present
+            getFeedbackLabel().setText("");
+            return users.get(0);
+        }
     }
 }
