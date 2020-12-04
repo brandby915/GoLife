@@ -25,6 +25,7 @@ import javafx.stage.Stage;
  *
  * @author ebalc
  */
+//hello
 public class LogoDisplayController implements Initializable
 {
     @FXML
